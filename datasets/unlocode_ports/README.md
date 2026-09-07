@@ -121,8 +121,8 @@ romanisations, so a naive name join will miss matches.
 | `COUNTRY` | C(2) | ISO 3166-1 alpha-2 |
 | `LOCATION` | C(3) | the 3-character location part |
 | `CTRY_NAME` | C(50) | country name as given in the code list |
-| `NAME` | C(70) | location name with diacritics, UTF-8 |
-| `NAME_ASCII` | C(70) | the source's own diacritic-free spelling of `NAME` |
+| `NAME` | C(70) | location name, ASCII-safe - the source's own diacritic-free spelling |
+| `NAME_ORIG` | C(70) | the same location name with diacritics, UTF-8, as the source gives it |
 | `SUBDIV` | C(3) | ISO 3166-2 subdivision code |
 | `SUBDIV_NM` | C(80) | resolved from `SubdivisionCodes.csv` (9,580 of 11,725) |
 | `FUNCTION` | C(8) | raw 8-position classifier |

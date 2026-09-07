@@ -91,7 +91,7 @@ FIELDS = [
     Field("LOCATION", "C", 3),
     Field("CTRY_NAME", "C", 50),
     Field("NAME", "C", 70),
-    Field("NAME_ASCII", "C", 70),
+    Field("NAME_ORIG", "C", 70),
     Field("SUBDIV", "C", 3),
     Field("SUBDIV_NM", "C", 80),
     Field("FUNCTION", "C", 8),
@@ -308,8 +308,15 @@ def build(archive_path: Path, out_dir: Path, source_url: str) -> None:
             "COUNTRY": row[COUNTRY],
             "LOCATION": row[LOCATION],
             "CTRY_NAME": countries.get(row[COUNTRY], ""),
-            "NAME": row[NAME],
-            "NAME_ASCII": row[NAME_WODIA],
+            # NAME carries the ASCII-safe spelling, not the diacritic original.
+            # This dataset is consumed by maps-platform's geoserver style
+            # generator, which points wpi_ports, unlocode_ports and
+            # upply_ports at one shared style keyed on NAME - upply_ports has
+            # no diacritic-free field of its own, so NAME has to be the field
+            # every port dataset in that project can agree on. The original
+            # with diacritics is kept, not dropped, under NAME_ORIG.
+            "NAME": row[NAME_WODIA],
+            "NAME_ORIG": row[NAME],
             "SUBDIV": row[SUBDIV],
             "SUBDIV_NM": subdiv_name,
             "FUNCTION": row[FUNCTION],
@@ -581,8 +588,8 @@ romanisations, so a naive name join will miss matches.
 | `COUNTRY` | C(2) | ISO 3166-1 alpha-2 |
 | `LOCATION` | C(3) | the 3-character location part |
 | `CTRY_NAME` | C(50) | country name as given in the code list |
-| `NAME` | C(70) | location name with diacritics, UTF-8 |
-| `NAME_ASCII` | C(70) | the source's own diacritic-free spelling of `NAME` |
+| `NAME` | C(70) | location name, ASCII-safe - the source's own diacritic-free spelling |
+| `NAME_ORIG` | C(70) | the same location name with diacritics, UTF-8, as the source gives it |
 | `SUBDIV` | C(3) | ISO 3166-2 subdivision code |
 | `SUBDIV_NM` | C(80) | resolved from `SubdivisionCodes.csv` ({subdiv_resolved:,} of {written:,}) |
 | `FUNCTION` | C(8) | raw 8-position classifier |
