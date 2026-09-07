@@ -1,111 +1,57 @@
-# ne_10m_bathymetry_all
+# maps-platform-datasets
 
-World ocean bathymetry as **12 nested depth-band polygons** in one shapefile.
-Ready to drop into GeoServer, QGIS or anything else that reads ESRI Shapefile.
+Geospatial datasets for the maps platform basemap and port/place layers, each
+as a ready-to-load ESRI Shapefile in `EPSG:4326` (WGS 84), UTF-8 encoded.
+Every dataset lives in its own folder under `datasets/` with its own README
+covering provenance, licence, field reference, and anything you need to know
+before styling or joining it.
 
-```
-5,779 polygons | EPSG:4326 (WGS 84) | UTF-8 | 34.4 MB unpacked
-```
+## Datasets
 
-## Where it comes from
+| Dataset | What it is | Size | Licence |
+|---|---:|---|---|
+| [ne_10m_bathymetry_all](datasets/ne_10m_bathymetry_all/README.md) | World ocean bathymetry, 12 nested depth-band polygons | 5,779 polygons | Public domain (Natural Earth) |
+| [ne_10m_populated_places_inland](datasets/ne_10m_populated_places_inland/README_places.md) | Populated places with anything within 12 km of a port removed | 6,537 points | Public domain (Natural Earth) |
+| [ne_10m_ports_dedup](datasets/ne_10m_ports_dedup/README_ports.md) | Natural Earth ports with same-name clusters collapsed | 1,063 points | Public domain (Natural Earth) |
+| [unlocode_ports](datasets/unlocode_ports/README.md) | UN/LOCODE locations flagged as ports | 11,725 points | Free use, attribution expected (UNECE) |
+| [upply](datasets/upply/README.md) | Upply's open list of world seaports | 14,186 points | CC BY 4.0 (Upply) |
+| [wpi_ports](datasets/wpi_ports/README.md) | NGA World Port Index ports, built from the live CSV feed | 3,807 points | Public domain (US Government) |
+| [world_extent](datasets/world_extent/README.md) | Single polygon covering the whole world, used as flat sea fill | 1 polygon | Synthetic, no restrictions |
 
-**Natural Earth**, 10m Physical Vectors — the "Bathymetry" dataset.
+There are three overlapping seaport layers here — `wpi_ports`, `unlocode_ports`
+and `upply` — each sourced independently (NGA, UNECE, Upply). They are not
+merged into one canonical layer; check each README's "Read this before you use
+it" section before stacking or joining them, especially around deduplication
+and `UN/LOCODE` matching.
 
-| | |
-|---|---|
-| Project | https://www.naturalearthdata.com |
-| Dataset page | https://www.naturalearthdata.com/downloads/10m-physical-vectors/ |
-| Bundle actually downloaded | `https://naturalearth.s3.amazonaws.com/10m_physical/10m_physical.zip` |
+## How the datasets are built
 
-Natural Earth publishes bathymetry as **twelve separate shapefiles**, one per
-depth band (`ne_10m_bathymetry_A_10000` … `ne_10m_bathymetry_L_0`). Their site
-also offers a download called *Bathymetry (All)*, which is **not** a merged
-layer — it is a zip of the same twelve separate files. This archive is the
-merged version: the twelve appended into one layer, distinguished by the `depth`
-attribute that Natural Earth already ships on every feature.
+Two build styles exist in this repo, depending on when the dataset was added:
 
-## Licence — free, no strings
+- **GDAL-based** (`ne_10m_bathymetry_all`, `ne_10m_populated_places_inland`,
+  `ne_10m_ports_dedup`, `world_extent`): built by hand with `ogr2ogr`, as
+  documented in each dataset's own README.
+- **Script-based, no GDAL** (`unlocode_ports`, `upply`, `wpi_ports`): built by
+  Python scripts under [scripts/](scripts/), one folder per dataset plus a
+  shared [scripts/common/](scripts/common/) with a download helper
+  ([download.py](scripts/common/download.py)), geo utilities
+  ([geo.py](scripts/common/geo.py)), and a dependency-free shapefile writer
+  ([shapefile_writer.py](scripts/common/shapefile_writer.py)). These have no
+  external Python dependencies — nothing to install.
 
-Natural Earth data is in the **public domain**. No permission is required to
-use it, for any purpose including commercial, and attribution is not required
-(though the project appreciates a credit). Terms:
-https://www.naturalearthdata.com/about/terms-of-use/
-
-Because the merge is a mechanical append of public-domain inputs, this archive
-carries no additional restrictions. Redistribute it freely.
-
-## Contents
-
-| File | Purpose |
-|---|---|
-| `ne_10m_bathymetry_all.shp` | geometry (34.0 MB) |
-| `ne_10m_bathymetry_all.shx` | shape index |
-| `ne_10m_bathymetry_all.dbf` | attributes |
-| `ne_10m_bathymetry_all.prj` | CRS — GCS_WGS_1984 |
-| `ne_10m_bathymetry_all.cpg` | encoding — `UTF-8` |
-| `ne_10m_bathymetry_all.qix` | spatial index (regenerable) |
-
-### Attributes
-
-| Field | Type | Notes |
-|---|---|---|
-| `depth` | Integer | metres below sea level. **The only field that varies** — this is what you style on |
-| `featurecla` | String | always `Bathymetry` |
-| `scalerank` | Integer | always `0` |
-
-### The twelve bands
-
-| `depth` | polygons | | `depth` | polygons |
-|---:|---:|---|---:|---:|
-| 0 | 22 | | 5000 | 1,862 |
-| 200 | 520 | | 6000 | 521 |
-| 1000 | 157 | | 7000 | 59 |
-| 2000 | 202 | | 8000 | 15 |
-| 3000 | 671 | | 9000 | 22 |
-| 4000 | 1,725 | | 10000 | 3 |
-
-## Read this before you style it
-
-**The bands are nested, not adjacent.** Each polygon covers everything *deeper
-than* its value, so the `depth = 0` band is the entire ocean, `depth = 200`
-covers everything below 200 m, and so on down. They stack like onion skins.
-
-Two consequences:
-
-1. **Paint shallow-first — 0, then 200, then 1000 …** Deeper bands go on top of
-   shallower ones. Reverse it and the 0 m band covers the whole map in one flat
-   colour.
-
-2. **In SLD, give each band its own `FeatureTypeStyle`, not just its own
-   `Rule`.** Inside a single `FeatureTypeStyle` the renderer walks features in
-   *datastore* order and applies whichever rule matches, so listing rules
-   shallow-to-deep guarantees nothing. This file happens to be stored
-   deepest-first, so twelve rules in one `FeatureTypeStyle` paint the 0 m band
-   last and you get a flat sea. A `FeatureTypeStyle` is a separate rendering
-   pass, which is what actually fixes the order.
-
-Twelve passes cost nothing measurable at this feature count — measured at
-0.79–0.93 s for both the twelve-pass and the collapsed one-pass version of the
-same view.
-
-## How it was built
-
-Appended with GDAL, from the twelve files in `10m_physical.zip`:
+To rebuild one of the scripted datasets:
 
 ```sh
-ogr2ogr -lco ENCODING=UTF-8 ne_10m_bathymetry_all.shp ne_10m_bathymetry_A_10000.shp
-for b in B_9000 C_8000 D_7000 E_6000 F_5000 G_4000 \
-         H_3000 I_2000 J_1000 K_200 L_0; do
-  ogr2ogr -append ne_10m_bathymetry_all.shp ne_10m_bathymetry_$b.shp
-done
+python scripts/<dataset>/build.py
 ```
 
-`-lco ENCODING=UTF-8` matters: without it ogr2ogr writes ISO-8859-1 and the
-`.cpg` no longer matches the bytes.
+Source files are downloaded into `downloaded/` (git-ignored) and the
+resulting shapefile is written into `datasets/<dataset>/`. Most build scripts
+accept `--url` to point at a different release of the source.
 
-## Why merged at all
+## Licensing
 
-One layer in a map group instead of twelve, one style instead of twelve, and
-the `depth` attribute expresses the whole ramp. There is no performance cost —
-5,779 features is small enough that the twelve filtered passes read from page
-cache.
+Every dataset here is free to use, including commercially; see each dataset's
+README for the exact terms and any attribution requirement (UNECE and Upply
+both expect credit; Natural Earth, NGA and the synthetic `world_extent` do
+not).
